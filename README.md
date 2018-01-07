@@ -1,4 +1,4 @@
-# OrderedHash - Ordered Hash Map Table For C
+# OrderedHash - Insertion Ordered Hash Map Table For C
 
 ## Description / Features
 
