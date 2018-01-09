@@ -33,6 +33,10 @@ typedef struct OHashOptions {
      *  - ohash_key_uint16
      *  - ohash_key_uint32
      *  - ohash_key_uint64
+     *
+     * * For floats/doubles:
+     *  - ohash_key_float
+     *  - ohash_key_double
      */
     uintmax_t(*key_hash_fn)(const struct OHashOptions, const void*);
 
@@ -63,6 +67,10 @@ typedef struct OHashOptions {
      *  - ohash_compare_key_uint16
      *  - ohash_compare_key_uint32
      *  - ohash_compare_key_uint64
+     *
+     * For floats/doubles:
+     *  - ohash_compare_key_float
+     *  - ohash_compare_key_double
      */
     int(*key_compare_fn)(const void*, const void*);
 
@@ -293,6 +301,8 @@ int ohash_compare_key_uint8(const void *a, const void *b);
 int ohash_compare_key_uint16(const void *a, const void *b);
 int ohash_compare_key_uint32(const void *a, const void *b);
 int ohash_compare_key_uint64(const void *a, const void *b);
+int ohash_compare_key_float(const void *a, const void *b);
+int ohash_compare_key_double(const void *a, const void *b);
 
 
 /* bundled key hashing functions */
@@ -309,5 +319,7 @@ uintmax_t ohash_key_uint8(const OHashOptions options, const void *key);
 uintmax_t ohash_key_uint16(const OHashOptions options, const void *key);
 uintmax_t ohash_key_uint32(const OHashOptions options, const void *key);
 uintmax_t ohash_key_uint64(const OHashOptions options, const void *key);
+uintmax_t ohash_key_float(const OHashOptions options, const void *key);
+uintmax_t ohash_key_double(const OHashOptions options, const void *key);
 
 #endif

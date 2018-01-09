@@ -840,6 +840,15 @@ int ohash_compare_key_uint64(const void *a, const void *b)
     return *(uint64_t*)a == *(uint64_t*)b;
 }
 
+int ohash_compare_key_float(const void *a, const void *b)
+{
+    return *(float*)a == *(float*)b;
+}
+
+int ohash_compare_key_double(const void *a, const void *b)
+{
+    return *(double*)a == *(double*)b;
+}
 
 /* bundled key hashing functions */
 
@@ -942,6 +951,22 @@ uintmax_t ohash_key_uint64(const OHashOptions options, const void *key)
 { UNUSED(options);
     char key_str[snprintf(NULL, 0, "%" SCNu64, *(uint64_t*)key) + 1];
     snprintf(key_str, sizeof key_str, "%" SCNu64, *(uint64_t*)key);
+
+    return ohash_key_string(options, key_str);
+}
+
+uintmax_t ohash_key_float(const OHashOptions options, const void *key)
+{ UNUSED(options);
+    char key_str[snprintf(NULL, 0, "%f", *(float*)key) + 1];
+    snprintf(key_str, sizeof key_str, "%f", *(float*)key);
+
+    return ohash_key_string(options, key_str);
+}
+
+uintmax_t ohash_key_double(const OHashOptions options, const void *key)
+{ UNUSED(options);
+    char key_str[snprintf(NULL, 0, "%f", *(double*)key) + 1];
+    snprintf(key_str, sizeof key_str, "%f", *(double*)key);
 
     return ohash_key_string(options, key_str);
 }
