@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.7)
-project(orderedhash)
+project(orderedhash LANGUAGES C)
+
+set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY true)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -pedantic -Wall -Wextra -Wno-missing-field-initializers")
 
@@ -15,6 +17,7 @@ target_link_libraries(orderedhash_static sodium)
 
 install(
     TARGETS orderedhash_shared orderedhash_static
+    OPTIONAL
     LIBRARY DESTINATION "lib"
     ARCHIVE DESTINATION "lib"
     PUBLIC_HEADER DESTINATION "include"
