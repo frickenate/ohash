@@ -795,6 +795,11 @@ int ohash_compare_key_int(const void *a, const void *b)
     return *(int*)a == *(int*)b;
 }
 
+int ohash_compare_key_intmax(const void *a, const void *b)
+{
+    return *(intmax_t*)a == *(intmax_t*)b;
+}
+
 int ohash_compare_key_int8(const void *a, const void *b)
 {
     return *(int8_t*)a == *(int8_t*)b;
@@ -818,6 +823,11 @@ int ohash_compare_key_int64(const void *a, const void *b)
 int ohash_compare_key_uint(const void *a, const void *b)
 {
     return *(unsigned*)a == *(unsigned*)b;
+}
+
+int ohash_compare_key_uintmax(const void *a, const void *b)
+{
+    return *(uintmax_t*)a == *(uintmax_t*)b;
 }
 
 int ohash_compare_key_uint8(const void *a, const void *b)
@@ -883,6 +893,14 @@ uintmax_t ohash_key_int(const OHashOptions options, const void *key)
     return ohash_key_string(options, key_str);
 }
 
+uintmax_t ohash_key_intmax(const OHashOptions options, const void *key)
+{ UNUSED(options);
+    char key_str[snprintf(NULL, 0, "%" SCNdMAX, *(intmax_t*)key) + 1];
+    snprintf(key_str, sizeof key_str, "%" SCNdMAX, *(intmax_t*)key);
+
+    return ohash_key_string(options, key_str);
+}
+
 uintmax_t ohash_key_int8(const OHashOptions options, const void *key)
 { UNUSED(options);
     char key_str[snprintf(NULL, 0, "%" SCNd8, *(int8_t*)key) + 1];
@@ -919,6 +937,14 @@ uintmax_t ohash_key_uint(const OHashOptions options, const void *key)
 { UNUSED(options);
     char key_str[snprintf(NULL, 0, "%u", *(unsigned*)key) + 1];
     snprintf(key_str, sizeof key_str, "%u", *(unsigned*)key);
+
+    return ohash_key_string(options, key_str);
+}
+
+uintmax_t ohash_key_uintmax(const OHashOptions options, const void *key)
+{ UNUSED(options);
+    char key_str[snprintf(NULL, 0, "%" SCNuMAX, *(uintmax_t*)key) + 1];
+    snprintf(key_str, sizeof key_str, "%" SCNuMAX, *(uintmax_t*)key);
 
     return ohash_key_string(options, key_str);
 }

@@ -22,6 +22,7 @@ typedef struct OHashOptions {
      *
      * * For signed integers:
      *  - ohash_key_int
+     *  - ohash_key_intmax
      *  - ohash_key_int8
      *  - ohash_key_int16
      *  - ohash_key_int32
@@ -29,6 +30,7 @@ typedef struct OHashOptions {
      *
      * * For unsigned integers:
      *  - ohash_key_uint
+     *  - ohash_key_uintmax
      *  - ohash_key_uint8
      *  - ohash_key_uint16
      *  - ohash_key_uint32
@@ -56,6 +58,7 @@ typedef struct OHashOptions {
      *
      * * For signed integers:
      *  - ohash_compare_key_int
+     *  - ohash_compare_key_intmax
      *  - ohash_compare_key_int8
      *  - ohash_compare_key_int16
      *  - ohash_compare_key_int32
@@ -63,6 +66,7 @@ typedef struct OHashOptions {
      *
      * * For unsigned integers:
      *  - ohash_compare_key_uint
+     *  - ohash_compare_key_uintmax
      *  - ohash_compare_key_uint8
      *  - ohash_compare_key_uint16
      *  - ohash_compare_key_uint32
@@ -292,11 +296,13 @@ void ohash_iter_free(OHashIter *iterator);
 int ohash_compare_key_pointer(const void *a, const void *b);
 int ohash_compare_key_string(const void *a, const void *b);
 int ohash_compare_key_int(const void *a, const void *b);
+int ohash_compare_key_intmax(const void *a, const void *b);
 int ohash_compare_key_int8(const void *a, const void *b);
 int ohash_compare_key_int16(const void *a, const void *b);
 int ohash_compare_key_int32(const void *a, const void *b);
 int ohash_compare_key_int64(const void *a, const void *b);
 int ohash_compare_key_uint(const void *a, const void *b);
+int ohash_compare_key_uintmax(const void *a, const void *b);
 int ohash_compare_key_uint8(const void *a, const void *b);
 int ohash_compare_key_uint16(const void *a, const void *b);
 int ohash_compare_key_uint32(const void *a, const void *b);
@@ -310,11 +316,13 @@ int ohash_compare_key_double(const void *a, const void *b);
 uintmax_t ohash_key_pointer(const OHashOptions options, const void *key);
 uintmax_t ohash_key_string(const OHashOptions options, const void *key);
 uintmax_t ohash_key_int(const OHashOptions options, const void *key);
+uintmax_t ohash_key_intmax(const OHashOptions options, const void *key);
 uintmax_t ohash_key_int8(const OHashOptions options, const void *key);
 uintmax_t ohash_key_int16(const OHashOptions options, const void *key);
 uintmax_t ohash_key_int32(const OHashOptions options, const void *key);
 uintmax_t ohash_key_int64(const OHashOptions options, const void *key);
 uintmax_t ohash_key_uint(const OHashOptions options, const void *key);
+uintmax_t ohash_key_uintmax(const OHashOptions options, const void *key);
 uintmax_t ohash_key_uint8(const OHashOptions options, const void *key);
 uintmax_t ohash_key_uint16(const OHashOptions options, const void *key);
 uintmax_t ohash_key_uint32(const OHashOptions options, const void *key);
