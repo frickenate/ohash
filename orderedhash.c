@@ -1,4 +1,6 @@
+#include <float.h>
 #include <inttypes.h>
+#include <math.h>
 #include <string.h>
 #include "orderedhash.h"
 
@@ -852,12 +854,17 @@ int ohash_compare_key_uint64(const void *a, const void *b)
 
 int ohash_compare_key_float(const void *a, const void *b)
 {
-    return *(float*)a == *(float*)b;
+    return fabsf(*(float*)a - *(float*)b) < FLT_EPSILON;
 }
 
 int ohash_compare_key_double(const void *a, const void *b)
 {
-    return *(double*)a == *(double*)b;
+    return fabs(*(double*)a - *(double*)b) < DBL_EPSILON;
+}
+
+int ohash_compare_key_long_double(const void *a, const void *b)
+{
+    return fabsl(*(long double*)a - *(long double*)b) < LDBL_EPSILON;
 }
 
 /* bundled key hashing functions */
@@ -993,6 +1000,14 @@ uintmax_t ohash_key_double(const OHashOptions options, const void *key)
 { UNUSED(options);
     char key_str[snprintf(NULL, 0, "%f", *(double*)key) + 1];
     snprintf(key_str, sizeof key_str, "%f", *(double*)key);
+
+    return ohash_key_string(options, key_str);
+}
+
+uintmax_t ohash_key_long_double(const OHashOptions options, const void *key)
+{ UNUSED(options);
+    char key_str[snprintf(NULL, 0, "%Lf", *(long double*)key) + 1];
+    snprintf(key_str, sizeof key_str, "%Lf", *(long double*)key);
 
     return ohash_key_string(options, key_str);
 }
