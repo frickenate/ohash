@@ -336,6 +336,10 @@ int ohash_delete_all(OHash *hash)
 
 void ohash_free(OHash *hash)
 {
+    if (!hash) {
+        return;
+    }
+
     // free iterators - desirable side effect of converting zombies to unused
     for (OHashIter *iterator = hash->iterators, *next; iterator; iterator = next) {
         next = iterator->next;
@@ -353,6 +357,7 @@ void ohash_free(OHash *hash)
 
     // free instance itself
     free(hash);
+    hash = NULL;
 }
 
 OHashIter *ohash_iter_new(OHash *hash)
@@ -420,6 +425,10 @@ void *ohash_iter_value(const OHashIter *iterator)
 
 void ohash_iter_free(OHashIter *iterator)
 {
+    if (!iterator) {
+        return;
+    }
+
     // remove iterator from linked list
     if (iterator->prev) {
         iterator->prev->next = iterator->next;
@@ -441,6 +450,7 @@ void ohash_iter_free(OHashIter *iterator)
     }
 
     free(iterator);
+    iterator = NULL;
 }
 
 /**
