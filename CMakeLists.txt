@@ -1,22 +1,22 @@
-cmake_minimum_required(VERSION 3.7)
-project(orderedhash LANGUAGES C)
+cmake_minimum_required(VERSION 3.7) # TODO can we support lower 3.x?
+project(ohash LANGUAGES C)
 
 set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY true)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -pedantic -Wall -Wextra -Wno-missing-field-initializers")
 
-add_library(orderedhash_shared SHARED orderedhash.c)
-set_target_properties(orderedhash_shared PROPERTIES OUTPUT_NAME orderedhash)
-set_target_properties(orderedhash_shared PROPERTIES PUBLIC_HEADER "orderedhash.h")
-target_link_libraries(orderedhash_shared sodium)
+add_library(ohash_shared SHARED ohash.c)
+set_target_properties(ohash_shared PROPERTIES OUTPUT_NAME ohash)
+set_target_properties(ohash_shared PROPERTIES PUBLIC_HEADER "ohash.h")
+target_link_libraries(ohash_shared sodium)
 
-add_library(orderedhash_static STATIC orderedhash.c)
-set_target_properties(orderedhash_static PROPERTIES OUTPUT_NAME orderedhash)
-set_target_properties(orderedhash_static PROPERTIES PUBLIC_HEADER "orderedhash.h")
-target_link_libraries(orderedhash_static sodium)
+add_library(ohash_static STATIC ohash.c)
+set_target_properties(ohash_static PROPERTIES OUTPUT_NAME ohash)
+set_target_properties(ohash_static PROPERTIES PUBLIC_HEADER "ohash.h")
+target_link_libraries(ohash_static sodium)
 
 install(
-    TARGETS orderedhash_shared orderedhash_static
+    TARGETS ohash_shared ohash_static
     OPTIONAL
     LIBRARY DESTINATION "lib"
     ARCHIVE DESTINATION "lib"

@@ -1,4 +1,4 @@
-# OrderedHash - Insertion Ordered Hash Map Table For C
+# OHash - Insertion Order Hash Map Table For C
 
 ## Description / Features
 
@@ -7,9 +7,9 @@ C implementation of an ordered hash map table.
 Features include:
 
 - Items are maintained in insertion order, allowing iteration over stored items in a defined order.
-- Built-in support for string and integer keys. Custom functions can be used to hash other types (structs, etc.).
-- Built-in hash functions use [SipHash](https://131002.net/siphash/) to prevent hash collision attacks.
-- Optionally make hash responsible for freeing memory for keys and values when they are deleted.
+- Bundled functions for many native key types. Custom functions can be used to hash other types (structs, etc.).
+- All bundled hash functions use [SipHash](https://131002.net/siphash/) to prevent hash collision attacks.
+- Optionally make hash instances responsible for freeing memory for keys and values when they are deleted.
 
 The most important detail to understand about this implementation: all
 keys and values are passed around as `void *` pointers. `ohash_insert()`
@@ -20,33 +20,36 @@ cast the return values of these functions back to the data types you stored.
 
 ## Dependencies
 
-* libsodium-dev (required) - provides [SipHash](https://131002.net/siphash/)
+* libsodium-dev (required) - provides [SipHash](https://131002.net/siphash/) and random secret keys
 * cmake (optional) - to compile shared and static libs
 
 ## Installation / Build Options
 
-### Option #1 - Compile shared and static libs
+### Option #1 - Compile shared and/or static libs
 
 ```bash
 # build shared and static libs in build directory with cmake.
-# make command creates liborderedhash.a and liborderedhash.so
-git clone https://github.com/frickenate/C-OrderedHash &&
-    cd C-OrderedHash && mkdir build && cd build &&
+# make command creates libohash.a and libohash.so
+git clone https://github.com/frickenate/ohash &&
+    cd ohash && mkdir build && cd build &&
     cmake .. && make
 
 # install system-wide, typically under /usr/local
 sudo make install
 
-# build your project against liborderedhash and libsodium
-clang -O2 example.c -lorderedhash -lsodium -o example
+# refresh ldconfig cache so that linking against ohash finds the lib
+sudo ldconfig
+
+# build your project against libohash and libsodium
+clang -O2 example.c -lohash -lsodium -o example
 ```
 
-### Option #2 - Compile your project against orderedhash.c directly
+### Option #2 - Compile your project with ohash.c directly
 
 ```bash
-git clone https://github.com/frickenate/C-OrderedHash
+git clone https://github.com/frickenate/ohash
 
-clang -O2 example.c C-OrderedHash/orderedhash.c -lsodium -o example
+clang -O2 example.c ohash/ohash.c -lsodium -o example
 ```
 
 ## Basic Usage
@@ -54,7 +57,7 @@ clang -O2 example.c C-OrderedHash/orderedhash.c -lsodium -o example
 ```c
 // example.c
 #include <stdio.h>
-#include <orderedhash.h>
+#include <ohash.h>
 
 int main()
 {
@@ -129,7 +132,7 @@ to free the memory of pointers stored in the hash.
 // example.c
 #include <stdio.h>
 #include <string.h>
-#include <orderedhash.h>
+#include <ohash.h>
 
 int main()
 {
