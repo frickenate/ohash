@@ -25,7 +25,7 @@ cast the return values of these functions back to the data types you stored.
 
 ## Installation / Build Options
 
-### Option #1 - Compile shared and/or static libs
+### Option #1 - Compile shared and static libs
 
 ```bash
 # build shared and static libs in build directory with cmake.
