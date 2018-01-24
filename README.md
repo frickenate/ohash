@@ -38,10 +38,10 @@ git clone https://github.com/frickenate/ohash &&
 ninja install
 
 # OR b) build and install shared lib (.so) only
-ninja build ohash_shared && ninja install
+ninja ohash_shared && ninja install
 
 # OR c) build and install static lib (.a) only
-ninja build ohash_static && ninja install
+ninja ohash_static && ninja install
 
 # refresh ldconfig cache so that linking against ohash finds the lib
 sudo ldconfig
