@@ -21,30 +21,61 @@ cast the return values of these functions back to the data types you stored.
 ## Dependencies
 
 * libsodium-dev (required) - provides [SipHash](https://131002.net/siphash/) and random secret keys
-* cmake (optional) - to compile shared and static libs
+* cmake (optional, recommended) - to compile shared and static libs
 
 ## Installation / Build Options
 
-### Option #1 - Compile shared and static libs
+### Option #1 - Compile shared and/or static libs - CMake + Ninja
 
 ```bash
-# build shared and static libs in build directory with cmake.
-# make command creates libohash.a and libohash.so
 git clone https://github.com/frickenate/ohash &&
     cd ohash && mkdir build && cd build &&
-    cmake .. && make
+    cmake -GNinja ..
 
-# install system-wide, typically under /usr/local
-sudo make install
+# choose between a), b), or c)
+
+# a) build and install both static and shared libs
+ninja install
+
+# OR b) build and install shared lib (.so) only
+ninja build ohash_shared && ninja install
+
+# OR c) build and install static lib (.a) only
+ninja build ohash_static && ninja install
 
 # refresh ldconfig cache so that linking against ohash finds the lib
 sudo ldconfig
 
-# build your project against libohash and libsodium
+# build your project against libohash and its libsodium dependency
 clang -O2 example.c -lohash -lsodium -o example
 ```
 
-### Option #2 - Compile your project with ohash.c directly
+### Option #2 - Compile shared and/or static libs - CMake + Make
+
+```bash
+git clone https://github.com/frickenate/ohash &&
+    cd ohash && mkdir build && cd build &&
+    cmake ..
+
+# choose between a), b), or c)
+
+# a) build and install both static and shared libs
+make && make install
+
+# OR b) build and install shared lib (.so) only
+make ohash_shared && make install
+
+# OR c) build and install static lib (.a) only
+make ohash_static && make install
+
+# refresh ldconfig cache so that linking against ohash finds the lib
+sudo ldconfig
+
+# build your project against libohash and its libsodium dependency
+clang -O2 example.c -lohash -lsodium -o example
+```
+
+### Option #3 - Compile your project with ohash.c directly
 
 ```bash
 git clone https://github.com/frickenate/ohash
