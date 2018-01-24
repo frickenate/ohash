@@ -35,7 +35,7 @@ git clone https://github.com/frickenate/ohash &&
 # choose between a), b), or c)
 
 # a) build and install both static and shared libs
-sudo ninja install
+ninja && sudo ninja install
 
 # OR b) build and install shared lib (.so) only
 ninja ohash_shared && sudo ninja install
