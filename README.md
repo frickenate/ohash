@@ -35,13 +35,13 @@ git clone https://github.com/frickenate/ohash &&
 # choose between a), b), or c)
 
 # a) build and install both static and shared libs
-ninja install
+sudo ninja install
 
 # OR b) build and install shared lib (.so) only
-ninja ohash_shared && ninja install
+ninja ohash_shared && sudo ninja install
 
 # OR c) build and install static lib (.a) only
-ninja ohash_static && ninja install
+ninja ohash_static && sudo ninja install
 
 # refresh ldconfig cache so that linking against ohash finds the lib
 sudo ldconfig
@@ -60,13 +60,13 @@ git clone https://github.com/frickenate/ohash &&
 # choose between a), b), or c)
 
 # a) build and install both static and shared libs
-make && make install
+make && sudo make install
 
 # OR b) build and install shared lib (.so) only
-make ohash_shared && make install
+make ohash_shared && sudo make install
 
 # OR c) build and install static lib (.a) only
-make ohash_static && make install
+make ohash_static && sudo make install
 
 # refresh ldconfig cache so that linking against ohash finds the lib
 sudo ldconfig
