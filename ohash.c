@@ -1,8 +1,11 @@
-#include <float.h>
-#include <inttypes.h>
-#include <math.h>
-#include <string.h>
 #include "ohash.h"
+#include <float.h> // FLT_EPSILON, DBL_EPSILON, LDBL_EPSILON
+#include <inttypes.h> // int*_t, uint*_t
+#include <math.h> // fabs(), fabsf(), fabsl()
+#include <stdio.h> // snprintf()
+#include <stdlib.h> // size_t, malloc(), free()
+#include <string.h> // strcmp()
+#include <sodium.h> // crypto_shorthash_BYTES, crypto_shorthash(), randombytes_buf(), sodium_init()
 
 // used to silence compiler warnings about intentionally unused function arguments
 #define UNUSED(x) (void)(x)
@@ -154,18 +157,41 @@ static void ohash_release_pair_ref(OHash *hash, OHashPairRef *pair_ref);
 static void ohash_release_used_pair_ref(OHash *hash, OHashPairRef *pair_ref);
 static void ohash_release_used_pair_ref_as_zombie(OHash *hash, OHashPairRef *pair_ref);
 
+_Bool ohash_init(OHash *hash, OHashOptions options)
+{
+    if (!hash || !ohash_prepare_options(&options))
+        return 0;
+
+    hash->options = options;
+
+    hash->num_pairs_allocated = 0;
+    hash->num_pairs_used = 0;
+    hash->num_pair_refs_allocated = 0;
+    hash->num_buckets_allocated = 0;
+    hash->num_buckets_occupied = 0;
+
+    hash->pairs_used_head = NULL;
+    hash->pairs_used_tail = NULL;
+    hash->pairs_unused_head = NULL;
+    hash->pair_refs_unused_head = NULL;
+    hash->pair_refs_zombie_head = NULL;
+    hash->buckets = NULL;
+    hash->iterators = NULL;
+    hash->allocations = NULL;
+
+    if (!ohash_allocate_buckets(hash, options.num_items))
+        return 0;
+
+    return 1;
+}
+
 OHash *ohash_new(OHashOptions options)
 {
-    OHash *hash = NULL;
+    OHash *hash = malloc(sizeof *hash);
 
-    if (ohash_prepare_options(&options) && (hash = malloc(sizeof *hash))) {
-        *hash = (OHash){ 0 };
-        hash->options = options;
-
-        if (!ohash_allocate_buckets(hash, options.num_items)) {
-            free(hash);
-            hash = NULL;
-        }
+    if (hash && !ohash_init(hash, options)) {
+        free(hash);
+        hash = NULL;
     }
 
     return hash;
@@ -310,11 +336,8 @@ _Bool ohash_delete_all(OHash *hash)
     return success;
 }
 
-void ohash_free(OHash *hash)
+void ohash_destroy(OHash *hash)
 {
-    if (!hash)
-        return;
-
     // free iterators - desirable side effect of converting zombies to unused
     for (OHashIter *iterator = hash->iterators, *next; iterator; iterator = next) {
         next = iterator->next;
@@ -329,19 +352,22 @@ void ohash_free(OHash *hash)
 
     // free hash buckets
     free(hash->buckets);
-
-    // free instance itself
-    free(hash);
-    hash = NULL;
 }
 
-OHashIter *ohash_iter_new(OHash *hash)
+void ohash_free(OHash *hash)
 {
-    OHashIter *iterator = malloc(sizeof *iterator);
+    if (hash) {
+        // free internals
+        ohash_destroy(hash);
 
-    if (!iterator)
-        return NULL;
+        // free hash instance itself
+        free(hash);
+        hash = NULL;
+    }
+}
 
+void ohash_iter_init(OHashIter *iterator, OHash *hash)
+{
     iterator->first = 1;
     iterator->hash = hash;
     iterator->pair = NULL;
@@ -353,6 +379,14 @@ OHashIter *ohash_iter_new(OHash *hash)
 
     iterator->next = hash->iterators;
     hash->iterators = iterator;
+}
+
+OHashIter *ohash_iter_new(OHash *hash)
+{
+    OHashIter *iterator = malloc(sizeof *iterator);
+
+    if (iterator)
+        ohash_iter_init(iterator, hash);
 
     return iterator;
 }
@@ -394,11 +428,8 @@ void *ohash_iter_value(const OHashIter *iterator)
     return iterator->pair ? iterator->pair->value : NULL;
 }
 
-void ohash_iter_free(OHashIter *iterator)
+void ohash_iter_destroy(OHashIter *iterator)
 {
-    if (!iterator)
-        return;
-
     // remove iterator from linked list
     if (iterator->prev)
         iterator->prev->next = iterator->next;
@@ -416,9 +447,15 @@ void ohash_iter_free(OHashIter *iterator)
             ohash_release_used_pair_ref(iterator->hash, pair_ref);
         }
     }
+}
 
-    free(iterator);
-    iterator = NULL;
+void ohash_iter_free(OHashIter *iterator)
+{
+    if (iterator) {
+        ohash_iter_destroy(iterator);
+        free(iterator);
+        iterator = NULL;
+    }
 }
 
 /**

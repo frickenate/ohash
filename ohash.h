@@ -1,7 +1,9 @@
 #ifndef OHASH_
 #define OHASH_
 
-#include <sodium.h>
+#include <inttypes.h> // int*_t, uint*_t
+#include <sodium.h> // crypto_shorthash_KEYBYTES
+#include <stdlib.h> // size_t
 
 /**
  * Options used to initialize new hash instances via ohash_new().
@@ -153,9 +155,20 @@ typedef struct OHash OHash;
 typedef struct OHashIter OHashIter;
 
 /**
- * Initializes new hash instance.
+ * Initializes hash instance allocated manually by the user.
  *
- * When finished with hash instance, a call to ohash_free() frees all associated memory.
+ * When finished with hash instance, a call to ohash_destroy() frees all associated internal resources.
+ *
+ * @param[in,out] hash Existing uninitialized hash instance.
+ * @param[in] options List of options with which to initialize hash.
+ * @return _Bool Whether initilization was successful and hash instance is usable.
+ */
+_Bool ohash_init(OHash *hash, OHashOptions options);
+
+/**
+ * Allocates and initializes new hash instance.
+ *
+ * When finished with hash instance, a call to ohash_free() frees all associated resources.
  *
  * @param[in] options List of options with which to initialize hash.
  * @retval OHash* If hash instance is successfully initialized.
@@ -230,12 +243,26 @@ _Bool ohash_delete(OHash *hash, void *key);
 _Bool ohash_delete_all(OHash *hash);
 
 /**
+ * Frees given hash instance's internal resources.
+ *
+ * 1. All iterators which have not been freed via ohash_iter_free() are forcibly freed.
+ * 2. All stored keys are values are deleted (and freed if hash options specified freeing functions).
+ * 3. All allocations internal to hash are freed.
+ * 4. Hash instance itself IS NOT freed.
+ *
+ * NOTE: Once called, hash instance (including iterators) is invalid unless reinitialized.
+ *
+ * @param[in] hash
+ */
+void ohash_destroy(OHash *hash);
+
+/**
  * Frees given hash instance in its entirety.
  *
  * 1. All iterators which have not been freed via ohash_iter_free() are forcibly freed.
  * 2. All stored keys are values are deleted (and freed if hash options specified freeing functions).
  * 3. All allocations internal to hash are freed.
- * 4. Hash instance itself is freed.
+ * 4. Hash instance itself IS freed.
  *
  * NOTE: Once called, all pointers to given hash instance (including iterators) are invalid.
  *
@@ -244,24 +271,35 @@ _Bool ohash_delete_all(OHash *hash);
 void ohash_free(OHash *hash);
 
 /**
- * Creates new hash iterator instance for given hash instance.
+ * Initializes iterator instance allocated manually by the user.
+ *
+ * When finished with iterator instance, a call to ohash_iter_destroy() frees all associated internal resources.
+ *
+ * @param[in,out] iterator Existing uninitialized iterator instance.
+ * @param[in] hash An existing, initialized, hash instance.
+ * @return _Bool Whether initilization was successful and iterator instance is usable.
+ */
+void ohash_iter_init(OHashIter *iterator, OHash *hash);
+
+/**
+ * Allocates and initializes new iterator instance for given hash instance.
  *
  * @param[in] hash An existing hash instance.
- * @return New hash iterator instance.
+ * @return New iterator instance.
  */
 OHashIter *ohash_iter_new(OHash *hash);
 
 /**
- * Rewinds hash iterator, allowing iteration to begin from start.
+ * Rewinds iterator, allowing iteration to begin from start.
  *
- * @param[in] iterator An existing hash iterator instance.
+ * @param[in] iterator An existing iterator instance.
  */
 void ohash_iter_rewind(OHashIter *iterator);
 
 /**
- * Advance hash iterator to next key/value pair.
+ * Advance iterator to next key/value pair.
  *
- * @param[in] iterator An existing hash iterator instance.
+ * @param[in] iterator An existing iterator instance.
  * @retval 0 If iteration is complete; ie: there are no more key/value pairs.
  * @retval 1 If iterator has successfully advanced to next key/value pair.
  */
@@ -270,7 +308,7 @@ _Bool ohash_iter_each(OHashIter *iterator);
 /**
  * Retrieves key for current iteration.
  *
- * @param[in] iterator An existing hash iterator instance.
+ * @param[in] iterator An existing iterator instance.
  * @retval void* Key for current iteration if iterator position is valid.
  * @retval NULL If iterator position is invalid.
  */
@@ -279,16 +317,23 @@ void *ohash_iter_key(const OHashIter *iterator);
 /**
  * Retrieves value for current iteration.
  *
- * @param[in] iterator An existing hash iterator instance.
+ * @param[in] iterator An existing iterator instance.
  * @retval void* Value for current iteration if iterator position is valid.
  * @retval NULL If iterator position is invalid.
  */
 void *ohash_iter_value(const OHashIter *iterator);
 
 /**
- * Frees given hash iterator instance.
+ * Frees given iterator instance's internal resources.
  *
- * @param iterator[in] An existing hash iterator instance.
+ * @param iterator[in] An existing iterator instance.
+ */
+void ohash_iter_destroy(OHashIter *iterator);
+
+/**
+ * Frees given iterator instance in its entirety.
+ *
+ * @param iterator[in] An existing iterator instance.
  */
 void ohash_iter_free(OHashIter *iterator);
 
