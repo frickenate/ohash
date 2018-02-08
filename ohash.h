@@ -6,6 +6,33 @@
 #include <stdlib.h> // size_t
 
 /**
+ * INTERNAL - Singly linked list node, for memory allocations internal to hash instance.
+ */
+typedef struct OHashAllocation {
+    void *allocation;
+    void *next;
+} OHashAllocation;
+
+/**
+ * INTERNAL - Doubly linked list node, for pair.
+ */
+typedef struct OHashPair {
+    void *key;
+    void *value;
+    struct OHashPair *prev;
+    struct OHashPair *next;
+} OHashPair;
+
+/**
+ * INTERNAL - Singly linked list node, for referencing OHashPair instance.
+ */
+typedef struct OHashPairRef {
+    OHashPair *pair;
+    struct OHashPairRef *next;
+} OHashPairRef;
+
+
+/**
  * Options used to initialize new hash instances via ohash_new().
  */
 typedef struct OHashOptions {
@@ -145,14 +172,99 @@ typedef struct OHashOptions {
 } OHashOptions;
 
 /**
- * A individual hash instance.
+ * Primary struct, representing a single hash instance.
  */
-typedef struct OHash OHash;
+typedef struct OHash {
+    /**
+     * Number of pairs allocated, whether or not currently in use.
+     */
+    size_t num_pairs_allocated;
+
+    /**
+     * Number of pairs currently stored in hash.
+     */
+    size_t num_pairs_used;
+
+    /**
+     * Head of doubly linked list of pairs currently in use.
+     */
+    OHashPair *pairs_used_head;
+
+    /**
+     * Tail of pairs_used_head list; used to append pairs in insertion order.
+     */
+    OHashPair *pairs_used_tail;
+
+    /**
+     * Head of singly linked list of pairs allocated but not currently in use.
+     *
+     * While struct is doubly linked, prev is always NULL when pairs are in this list.
+     */
+    OHashPair *pairs_unused_head;
+
+    /**
+     * Number of pair refs allocated, whether or not currently in use.
+     */
+    size_t num_pair_refs_allocated;
+
+    /**
+     * Head of singly linked list of pair refs allocated but not currently in use.
+     */
+    OHashPairRef *pair_refs_unused_head;
+
+    /**
+     * Singly linked list of pair refs tracking pairs currently in zombie state.
+     *
+     * Each zombie is a pair ref to a pair still present in pairs_used_head list.
+     * Zombies are only created when pairs are deleted while any iterators
+     * exist, allowing all operations to be used safely during iteration.
+     */
+    OHashPairRef *pair_refs_zombie_head;
+
+    /**
+     * Number of allocated hash table buckets, whether or not occupied.
+     */
+    size_t num_buckets_allocated;
+
+    /**
+     * Number of hash table buckets currently occupied by one or more pair refs.
+     */
+    size_t num_buckets_occupied;
+
+    /**
+     * Allocated hash table buckets.
+     *
+     * Each bucket is head of singly linked list of pair refs, operating as
+     * separate chaining mechanism for handling hash key bucket collisions.
+     */
+    OHashPairRef **buckets;
+
+    /**
+     * Options used to configure hash behavior, as passed to ohash_new().
+     */
+    OHashOptions options;
+
+    /**
+     * Doubly linked list of allocated iterators.
+     */
+    struct OHashIter *iterators;
+
+    /**
+     * Long-term memory allocations internal to hash, freed upon ohash_free().
+     */
+    OHashAllocation *allocations;
+} OHash;
 
 /**
  * Iterator used to iterate, in insertion order, a hash instance's key/value pairs.
  */
-typedef struct OHashIter OHashIter;
+typedef struct OHashIter {
+    int first;       ///< whether we are at start of iteration (0/1)
+    OHash *hash;     ///< hash instance the iterator instance belongs to
+    OHashPair *pair; ///< current pair iterator is pointing at
+    struct OHashIter *prev; ///< prev iterator
+    struct OHashIter *next; ///< next iterator
+} OHashIter;
 
 /**
  * Initializes hash instance allocated manually by the user.
