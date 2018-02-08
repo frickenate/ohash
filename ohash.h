@@ -78,7 +78,7 @@ typedef struct OHashOptions {
      *  - ohash_compare_key_double
      *  - ohash_compare_key_long_double
      */
-    int(*key_compare_fn)(const void*, const void*);
+    _Bool(*key_compare_fn)(const void*, const void*);
 
     /**
      * Function used to free memory of keys when they are removed from the hash.
@@ -189,7 +189,7 @@ void *ohash_get(const OHash *hash, const void *key);
  * @retval 0 If key could not be found in hash.
  * @retval 1 If key was found in hash.
  */
-int ohash_exists(const OHash *hash, const void *key);
+_Bool ohash_exists(const OHash *hash, const void *key);
 
 /**
  * Inserts given value under given key within given hash instance.
@@ -204,7 +204,7 @@ int ohash_exists(const OHash *hash, const void *key);
  * @retval 0 If key/value pair could not be inserted.
  * @retval 1 If key/value pair was successfully inserted.
  */
-int ohash_insert(OHash *hash, void *key, void *value);
+_Bool ohash_insert(OHash *hash, void *key, void *value);
 
 /**
  * Deletes given key (and its stored value) from given hash instance.
@@ -216,7 +216,7 @@ int ohash_insert(OHash *hash, void *key, void *value);
  * @retval 0 If key/value pair could not be found or deleted.
  * @retval 1 If key/value pair was found and successfully deleted.
  */
-int ohash_delete(OHash *hash, void *key);
+_Bool ohash_delete(OHash *hash, void *key);
 
 /**
  * Deletes all keys (and their stored values) from given hash instance.
@@ -227,7 +227,7 @@ int ohash_delete(OHash *hash, void *key);
  * @retval 0 If any key/value pairs could not be deleted.
  * @retval 1 If all key/value pairs were successfully deleted - including if hash was already empty.
  */
-int ohash_delete_all(OHash *hash);
+_Bool ohash_delete_all(OHash *hash);
 
 /**
  * Frees given hash instance in its entirety.
@@ -265,7 +265,7 @@ void ohash_iter_rewind(OHashIter *iterator);
  * @retval 0 If iteration is complete; ie: there are no more key/value pairs.
  * @retval 1 If iterator has successfully advanced to next key/value pair.
  */
-int ohash_iter_each(OHashIter *iterator);
+_Bool ohash_iter_each(OHashIter *iterator);
 
 /**
  * Retrieves key for current iteration.
@@ -295,23 +295,23 @@ void ohash_iter_free(OHashIter *iterator);
 
 /* bundled key comparison functions */
 
-int ohash_compare_key_pointer(const void *a, const void *b);
-int ohash_compare_key_string(const void *a, const void *b);
-int ohash_compare_key_int(const void *a, const void *b);
-int ohash_compare_key_intmax(const void *a, const void *b);
-int ohash_compare_key_int8(const void *a, const void *b);
-int ohash_compare_key_int16(const void *a, const void *b);
-int ohash_compare_key_int32(const void *a, const void *b);
-int ohash_compare_key_int64(const void *a, const void *b);
-int ohash_compare_key_uint(const void *a, const void *b);
-int ohash_compare_key_uintmax(const void *a, const void *b);
-int ohash_compare_key_uint8(const void *a, const void *b);
-int ohash_compare_key_uint16(const void *a, const void *b);
-int ohash_compare_key_uint32(const void *a, const void *b);
-int ohash_compare_key_uint64(const void *a, const void *b);
-int ohash_compare_key_float(const void *a, const void *b);
-int ohash_compare_key_double(const void *a, const void *b);
-int ohash_compare_key_long_double(const void *a, const void *b);
+_Bool ohash_compare_key_pointer(const void *a, const void *b);
+_Bool ohash_compare_key_string(const void *a, const void *b);
+_Bool ohash_compare_key_int(const void *a, const void *b);
+_Bool ohash_compare_key_intmax(const void *a, const void *b);
+_Bool ohash_compare_key_int8(const void *a, const void *b);
+_Bool ohash_compare_key_int16(const void *a, const void *b);
+_Bool ohash_compare_key_int32(const void *a, const void *b);
+_Bool ohash_compare_key_int64(const void *a, const void *b);
+_Bool ohash_compare_key_uint(const void *a, const void *b);
+_Bool ohash_compare_key_uintmax(const void *a, const void *b);
+_Bool ohash_compare_key_uint8(const void *a, const void *b);
+_Bool ohash_compare_key_uint16(const void *a, const void *b);
+_Bool ohash_compare_key_uint32(const void *a, const void *b);
+_Bool ohash_compare_key_uint64(const void *a, const void *b);
+_Bool ohash_compare_key_float(const void *a, const void *b);
+_Bool ohash_compare_key_double(const void *a, const void *b);
+_Bool ohash_compare_key_long_double(const void *a, const void *b);
 
 
 /* bundled key hashing functions */

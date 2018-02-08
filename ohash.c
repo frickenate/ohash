@@ -145,9 +145,9 @@ struct OHashIter {
 
 static void *ohash_alloc_new(OHash *hash, const size_t size);
 static void ohash_alloc_free_all(OHash *hash);
-static int ohash_prepare_options(OHashOptions *options);
+static _Bool ohash_prepare_options(OHashOptions *options);
 inline static size_t ohash_key_bucket(const OHash *hash, const void *key);
-static int ohash_allocate_buckets(OHash *hash, size_t num_new_buckets);
+static _Bool ohash_allocate_buckets(OHash *hash, size_t num_new_buckets);
 static void ohash_release_pair(OHash *hash, OHashPair *pair);
 static OHashPairRef *ohash_obtain_pair_ref(OHash *hash);
 static void ohash_release_pair_ref(OHash *hash, OHashPairRef *pair_ref);
@@ -156,22 +156,16 @@ static void ohash_release_used_pair_ref_as_zombie(OHash *hash, OHashPairRef *pai
 
 OHash *ohash_new(OHashOptions options)
 {
-    if (!ohash_prepare_options(&options)) {
-        return NULL;
-    }
+    OHash *hash = NULL;
 
-    OHash *hash = malloc(sizeof *hash);
+    if (ohash_prepare_options(&options) && (hash = malloc(sizeof *hash))) {
+        *hash = (OHash){ 0 };
+        hash->options = options;
 
-    if (!hash) {
-        return NULL;
-    }
-
-    *hash = (OHash){ 0 };
-    hash->options = options;
-
-    if (!ohash_allocate_buckets(hash, options.num_items)) {
-        free(hash);
-        return NULL;
+        if (!ohash_allocate_buckets(hash, options.num_items)) {
+            free(hash);
+            hash = NULL;
+        }
     }
 
     return hash;
@@ -187,37 +181,33 @@ void *ohash_get(const OHash *hash, const void *key)
     // search pair refs of key's bucket for matching key
     const OHashPairRef *pair_ref = hash->buckets[ohash_key_bucket(hash, key)];
 
-    while (pair_ref && !hash->options.key_compare_fn(pair_ref->pair->key, key)) {
+    while (pair_ref && !hash->options.key_compare_fn(pair_ref->pair->key, key))
         pair_ref = pair_ref->next;
-    }
 
     return pair_ref ? pair_ref->pair->value : NULL;
 }
 
-int ohash_exists(const OHash *hash, const void *key)
+_Bool ohash_exists(const OHash *hash, const void *key)
 {
     return ohash_get(hash, key) ? 1 : 0;
 }
 
-int ohash_insert(OHash *hash, void *key, void *value)
+_Bool ohash_insert(OHash *hash, void *key, void *value)
 {
     // search pair refs of key's bucket for matching (duplicate) key
     size_t bucket = ohash_key_bucket(hash, key);
     OHashPairRef *pair_ref = hash->buckets[bucket];
 
-    while (pair_ref && !hash->options.key_compare_fn(pair_ref->pair->key, key)) {
+    while (pair_ref && !hash->options.key_compare_fn(pair_ref->pair->key, key))
         pair_ref = pair_ref->next;
-    }
 
     // duplicate key - replace key/value
     if (pair_ref) {
-        if (hash->options.key_free_fn && pair_ref->pair->key != key) {
+        if (hash->options.key_free_fn && pair_ref->pair->key != key)
             hash->options.key_free_fn(pair_ref->pair->key);
-        }
 
-        if (pair_ref->pair->value && hash->options.value_free_fn && pair_ref->pair->value != value) {
+        if (pair_ref->pair->value && hash->options.value_free_fn && pair_ref->pair->value != value)
             hash->options.value_free_fn(pair_ref->pair->value);
-        }
 
         pair_ref->pair->key = key;
         pair_ref->pair->value = value;
@@ -231,17 +221,14 @@ int ohash_insert(OHash *hash, void *key, void *value)
     if ((double)hash->num_buckets_occupied / (double)hash->num_buckets_allocated * 100 >=
         hash->options.resize_capacity_percent
     ) {
-        // double number of buckets (and rebuild the contents)
-        if (ohash_allocate_buckets(hash, CAPPED_MULTIPLY(SIZE_MAX, hash->num_buckets_allocated, 2))) {
-            // key hash usually changes on resize - get new bucket
+        // double number of buckets (and rebuild the contents), then get key's new hash
+        if (ohash_allocate_buckets(hash, CAPPED_MULTIPLY(SIZE_MAX, hash->num_buckets_allocated, 2)))
             bucket = ohash_key_bucket(hash, key);
-        }
     }
 
     // obtain a pair ref with an attached pair
-    if (!(pair_ref = ohash_obtain_pair_ref(hash))) {
+    if (!(pair_ref = ohash_obtain_pair_ref(hash)))
         return 0;
-    }
 
     // append as tail of used pairs, maintaining insertion order
     pair_ref->pair->key = key;
@@ -249,22 +236,19 @@ int ohash_insert(OHash *hash, void *key, void *value)
     pair_ref->pair->prev = hash->pairs_used_tail;
     pair_ref->pair->next = NULL;
 
-    if (hash->pairs_used_tail) {
+    if (hash->pairs_used_tail)
         hash->pairs_used_tail->next = pair_ref->pair;
-    }
 
     hash->pairs_used_tail = pair_ref->pair;
 
-    if (!hash->pairs_used_head) {
+    if (!hash->pairs_used_head)
         hash->pairs_used_head = pair_ref->pair;
-    }
 
     // increment counts, prepend pair ref to bucket
     ++hash->num_pairs_used;
 
-    if (!hash->buckets[bucket]) {
+    if (!hash->buckets[bucket])
         ++hash->num_buckets_occupied;
-    }
 
     pair_ref->next = hash->buckets[bucket];
     hash->buckets[bucket] = pair_ref;
@@ -272,7 +256,7 @@ int ohash_insert(OHash *hash, void *key, void *value)
     return 1;
 }
 
-int ohash_delete(OHash *hash, void *key)
+_Bool ohash_delete(OHash *hash, void *key)
 {
     // search pair refs of key's bucket for matching key
     const size_t bucket = ohash_key_bucket(hash, key);
@@ -284,51 +268,43 @@ int ohash_delete(OHash *hash, void *key)
     }
 
     // key not found
-    if (!pair_ref) {
+    if (!pair_ref)
         return 0;
-    }
 
-    if (hash->options.key_free_fn) {
+    if (hash->options.key_free_fn)
         hash->options.key_free_fn(pair_ref->pair->key);
-    }
 
-    if (pair_ref->pair->value && hash->options.value_free_fn) {
+    if (pair_ref->pair->value && hash->options.value_free_fn)
         hash->options.value_free_fn(pair_ref->pair->value);
-    }
 
     --hash->num_pairs_used;
 
     // remove pair ref from bucket
-    if (prev_pair_ref) {
+    if (prev_pair_ref)
         prev_pair_ref->next = pair_ref->next;
-    }
-    else if (!(hash->buckets[bucket] = pair_ref->next)) {
+    else if (!(hash->buckets[bucket] = pair_ref->next))
         --hash->num_buckets_occupied;
-    }
 
-    // iterators are in play - mark pair ref as zombie within used list
-    if (hash->iterators) {
+    // iterators are in play - mark pair ref as zombie within used list;
+    // otherwise, zombie not required - release pair ref to unused list
+    if (hash->iterators)
         ohash_release_used_pair_ref_as_zombie(hash, pair_ref);
-    }
-    // zombie not required - release pair ref to unused list
-    else {
+    else
         ohash_release_used_pair_ref(hash, pair_ref);
-    }
 
     return 1;
 }
 
-int ohash_delete_all(OHash *hash)
+_Bool ohash_delete_all(OHash *hash)
 {
-    int success = 1;
+    _Bool success = 1;
 
     for (OHashPair *pair = hash->pairs_used_head, *next_pair; pair; pair = next_pair) {
         next_pair = pair->next;
 
         // skip zombies
-        if (pair->key && !ohash_delete(hash, pair->key)) {
+        if (pair->key && !ohash_delete(hash, pair->key))
             success = 0;
-        }
     }
 
     return success;
@@ -336,9 +312,8 @@ int ohash_delete_all(OHash *hash)
 
 void ohash_free(OHash *hash)
 {
-    if (!hash) {
+    if (!hash)
         return;
-    }
 
     // free iterators - desirable side effect of converting zombies to unused
     for (OHashIter *iterator = hash->iterators, *next; iterator; iterator = next) {
@@ -364,9 +339,8 @@ OHashIter *ohash_iter_new(OHash *hash)
 {
     OHashIter *iterator = malloc(sizeof *iterator);
 
-    if (!iterator) {
+    if (!iterator)
         return NULL;
-    }
 
     iterator->first = 1;
     iterator->hash = hash;
@@ -374,9 +348,8 @@ OHashIter *ohash_iter_new(OHash *hash)
     iterator->prev = NULL;
 
     // prepend to iterators list
-    if (hash->iterators) {
+    if (hash->iterators)
         hash->iterators->prev = iterator;
-    }
 
     iterator->next = hash->iterators;
     hash->iterators = iterator;
@@ -390,7 +363,7 @@ void ohash_iter_rewind(OHashIter *iterator)
     iterator->pair = NULL;
 }
 
-int ohash_iter_each(OHashIter *iterator)
+_Bool ohash_iter_each(OHashIter *iterator)
 {
     // first iteration uses first non-zombie from used head
     if (iterator->first) {
@@ -402,13 +375,11 @@ int ohash_iter_each(OHashIter *iterator)
             iterator->pair = iterator->pair->next
         );
     }
-
     // advance to the next non-zombie pair
-    else if (iterator->pair) {
+    else if (iterator->pair)
         do {
             iterator->pair = iterator->pair->next;
         } while (iterator->pair && !iterator->pair->key);
-    }
 
     return iterator->pair ? 1 : 0;
 }
@@ -425,20 +396,17 @@ void *ohash_iter_value(const OHashIter *iterator)
 
 void ohash_iter_free(OHashIter *iterator)
 {
-    if (!iterator) {
+    if (!iterator)
         return;
-    }
 
     // remove iterator from linked list
-    if (iterator->prev) {
+    if (iterator->prev)
         iterator->prev->next = iterator->next;
-    } else {
+    else
         iterator->hash->iterators = iterator->next;
-    }
 
-    if (iterator->next) {
+    if (iterator->next)
         iterator->next->prev = iterator->prev;
-    }
 
     // upon freeing last iterator, release used zombies to unused
     if (!iterator->hash->iterators) {
@@ -468,9 +436,8 @@ static void *ohash_alloc_new(OHash *hash, const size_t size)
 {
     OHashAllocation *alloc = malloc(sizeof *alloc);
 
-    if (!alloc) {
+    if (!alloc)
         return NULL;
-    }
 
     if (!(alloc->allocation = malloc(size))) {
         free(alloc);
@@ -493,7 +460,6 @@ static void ohash_alloc_free_all(OHash *hash)
 {
     for (OHashAllocation *alloc = hash->allocations, *next_alloc; alloc; alloc = next_alloc) {
         next_alloc = alloc->next;
-
         free(alloc->allocation);
         free(alloc);
     }
@@ -522,22 +488,19 @@ inline static size_t ohash_key_bucket(const OHash *hash, const void *key)
  * @retval 1 If options are valid and usable.
  * @retval 0 If any option is invalid - cannot continue with hash initialization.
  */
-static int ohash_prepare_options(OHashOptions *options)
+static _Bool ohash_prepare_options(OHashOptions *options)
 {
     // safe to call multiple times in one process run
-    if (sodium_init() == -1) {
+    if (sodium_init() == -1)
         return 0;
-    }
 
-    if (!options->key_hash_fn || !options->key_compare_fn) {
+    if (!options->key_hash_fn || !options->key_compare_fn)
         return 0;
-    }
 
-    if (!options->resize_capacity_percent) {
+    if (!options->resize_capacity_percent)
         options->resize_capacity_percent = 75;
-    } else if (options->resize_capacity_percent < 0 || options->resize_capacity_percent > 100) {
+    else if (options->resize_capacity_percent < 0 || options->resize_capacity_percent > 100)
         return 0;
-    }
 
     int empty_secret = 1;
     for (unsigned i = 0; i < crypto_shorthash_KEYBYTES; ++i) {
@@ -547,14 +510,12 @@ static int ohash_prepare_options(OHashOptions *options)
         }
     }
 
-    if (empty_secret) {
+    if (empty_secret)
         randombytes_buf(options->hash_string_secret, crypto_shorthash_KEYBYTES);
-    }
 
     // round up to next even number, capped at SIZE_MAX, default of 2
-    if (!(options->num_items = (CAPPED_ADD(SIZE_MAX, options->num_items, 1) & ~1))) {
+    if (!(options->num_items = (CAPPED_ADD(SIZE_MAX, options->num_items, 1) & ~1)))
         options->num_items = 2;
-    }
 
     return 1;
 }
@@ -567,7 +528,7 @@ static int ohash_prepare_options(OHashOptions *options)
  * @retval 0 If additional buckets could not be allocated.
  * @retval 1 If additional buckets were successfully allocated.
  */
-static int ohash_allocate_buckets(OHash *hash, size_t num_new_buckets)
+static _Bool ohash_allocate_buckets(OHash *hash, size_t num_new_buckets)
 {
     // calculations for buckets, in units and allocated bytes
     FLEX_STATIC const size_t UNIT_ALLOCATION_BYTES = sizeof *hash->buckets;
@@ -576,26 +537,22 @@ static int ohash_allocate_buckets(OHash *hash, size_t num_new_buckets)
 
     const size_t num_old_buckets = hash->num_buckets_allocated;
 
-    if (num_old_buckets >= MAX_ALLOCATION_UNITS) {
+    if (num_old_buckets >= MAX_ALLOCATION_UNITS)
         return 0;
-    }
 
     const size_t bytes_new_buckets = CAPPED_MULTIPLY(MAX_ALLOCATION_BYTES, UNIT_ALLOCATION_BYTES, num_new_buckets);
 
-    if ((num_new_buckets = bytes_new_buckets / UNIT_ALLOCATION_BYTES) <= num_old_buckets) {
+    if ((num_new_buckets = bytes_new_buckets / UNIT_ALLOCATION_BYTES) <= num_old_buckets)
         return 0;
-    }
 
     // allocate/initialize new buckets
     OHashPairRef **new_buckets = malloc(bytes_new_buckets);
 
-    if (!new_buckets) {
+    if (!new_buckets)
         return 0;
-    }
 
-    for (size_t i = 0; i < num_new_buckets; ++i) {
+    for (size_t i = 0; i < num_new_buckets; ++i)
         new_buckets[i] = NULL;
-    }
 
     hash->num_buckets_allocated = num_new_buckets;
     hash->num_buckets_occupied = 0;
@@ -614,9 +571,8 @@ static int ohash_allocate_buckets(OHash *hash, size_t num_new_buckets)
             next_pair_ref = pair_ref->next;
 
             // first pair in new bucket
-            if (!new_buckets[new_bucket = ohash_key_bucket(hash, pair_ref->pair->key)]) {
+            if (!new_buckets[new_bucket = ohash_key_bucket(hash, pair_ref->pair->key)])
                 ++hash->num_buckets_occupied;
-            }
 
             // prepend pair as head of new bucket
             pair_ref->next = new_buckets[new_bucket];
@@ -667,21 +623,18 @@ static OHashPairRef *ohash_obtain_pair_ref(OHash *hash)
             num_new_pairs
         );
 
-        if ((num_new_pairs = bytes_new_pairs / UNIT_ALLOCATION_BYTES) <= 0) {
+        if ((num_new_pairs = bytes_new_pairs / UNIT_ALLOCATION_BYTES) <= 0)
             return NULL;
-        }
 
         OHashPair *pairs = ohash_alloc_new(hash, bytes_new_pairs);
 
-        if (!pairs) {
+        if (!pairs)
             return NULL;
-        }
 
         hash->num_pairs_allocated += num_new_pairs;
 
-        for (size_t i = 0; i < num_new_pairs; ++i) {
+        for (size_t i = 0; i < num_new_pairs; ++i)
             ohash_release_pair(hash, &pairs[i]);
-        }
     }
 
     // allocate more pair refs
@@ -706,21 +659,18 @@ static OHashPairRef *ohash_obtain_pair_ref(OHash *hash)
             num_new_pair_refs
         );
 
-        if ((num_new_pair_refs = bytes_new_pair_refs / UNIT_ALLOCATION_BYTES) <= 0) {
+        if ((num_new_pair_refs = bytes_new_pair_refs / UNIT_ALLOCATION_BYTES) <= 0)
             return NULL;
-        }
 
         OHashPairRef *pair_refs = ohash_alloc_new(hash, bytes_new_pair_refs);
 
-        if (!pair_refs) {
+        if (!pair_refs)
             return NULL;
-        }
 
         hash->num_pair_refs_allocated += num_new_pair_refs;
 
-        for (size_t i = 0; i < num_new_pair_refs; ++i) {
+        for (size_t i = 0; i < num_new_pair_refs; ++i)
             ohash_release_pair_ref(hash, &pair_refs[i]);
-        }
     }
 
     // pop a pair and pair ref from their respective unused lists
@@ -760,21 +710,17 @@ static void ohash_release_pair_ref(OHash *hash, OHashPairRef *pair_ref)
 static void ohash_release_used_pair_ref(OHash *hash, OHashPairRef *pair_ref)
 {
     // remove pair from used linked list
-    if (pair_ref->pair->prev) {
+    if (pair_ref->pair->prev)
         pair_ref->pair->prev->next = pair_ref->pair->next;
-    }
 
-    if (pair_ref->pair->next) {
+    if (pair_ref->pair->next)
         pair_ref->pair->next->prev = pair_ref->pair->prev;
-    }
 
-    if (hash->pairs_used_head == pair_ref->pair) {
+    if (hash->pairs_used_head == pair_ref->pair)
         hash->pairs_used_head = pair_ref->pair->next;
-    }
 
-    if (hash->pairs_used_tail == pair_ref->pair) {
+    if (hash->pairs_used_tail == pair_ref->pair)
         hash->pairs_used_tail = pair_ref->pair->prev;
-    }
 
     // push pair and its pair ref to their respective unused lists
     ohash_release_pair(hash, pair_ref->pair);
@@ -792,87 +738,87 @@ static void ohash_release_used_pair_ref_as_zombie(OHash *hash, OHashPairRef *pai
 
 /* bundled key comparison functions */
 
-int ohash_compare_key_pointer(const void *a, const void *b)
+_Bool ohash_compare_key_pointer(const void *a, const void *b)
 {
     return a == b;
 }
 
-int ohash_compare_key_string(const void *a, const void *b)
+_Bool ohash_compare_key_string(const void *a, const void *b)
 {
     return strcmp((char *)a, (char *)b) == 0;
 }
 
-int ohash_compare_key_int(const void *a, const void *b)
+_Bool ohash_compare_key_int(const void *a, const void *b)
 {
     return *(int*)a == *(int*)b;
 }
 
-int ohash_compare_key_intmax(const void *a, const void *b)
+_Bool ohash_compare_key_intmax(const void *a, const void *b)
 {
     return *(intmax_t*)a == *(intmax_t*)b;
 }
 
-int ohash_compare_key_int8(const void *a, const void *b)
+_Bool ohash_compare_key_int8(const void *a, const void *b)
 {
     return *(int8_t*)a == *(int8_t*)b;
 }
 
-int ohash_compare_key_int16(const void *a, const void *b)
+_Bool ohash_compare_key_int16(const void *a, const void *b)
 {
     return *(int16_t*)a == *(int16_t*)b;
 }
 
-int ohash_compare_key_int32(const void *a, const void *b)
+_Bool ohash_compare_key_int32(const void *a, const void *b)
 {
     return *(int32_t*)a == *(int32_t*)b;
 }
 
-int ohash_compare_key_int64(const void *a, const void *b)
+_Bool ohash_compare_key_int64(const void *a, const void *b)
 {
     return *(int64_t*)a == *(int64_t*)b;
 }
 
-int ohash_compare_key_uint(const void *a, const void *b)
+_Bool ohash_compare_key_uint(const void *a, const void *b)
 {
     return *(unsigned*)a == *(unsigned*)b;
 }
 
-int ohash_compare_key_uintmax(const void *a, const void *b)
+_Bool ohash_compare_key_uintmax(const void *a, const void *b)
 {
     return *(uintmax_t*)a == *(uintmax_t*)b;
 }
 
-int ohash_compare_key_uint8(const void *a, const void *b)
+_Bool ohash_compare_key_uint8(const void *a, const void *b)
 {
     return *(uint8_t*)a == *(uint8_t*)b;
 }
 
-int ohash_compare_key_uint16(const void *a, const void *b)
+_Bool ohash_compare_key_uint16(const void *a, const void *b)
 {
     return *(uint16_t*)a == *(uint16_t*)b;
 }
 
-int ohash_compare_key_uint32(const void *a, const void *b)
+_Bool ohash_compare_key_uint32(const void *a, const void *b)
 {
     return *(uint32_t*)a == *(uint32_t*)b;
 }
 
-int ohash_compare_key_uint64(const void *a, const void *b)
+_Bool ohash_compare_key_uint64(const void *a, const void *b)
 {
     return *(uint64_t*)a == *(uint64_t*)b;
 }
 
-int ohash_compare_key_float(const void *a, const void *b)
+_Bool ohash_compare_key_float(const void *a, const void *b)
 {
     return fabsf(*(float*)a - *(float*)b) < FLT_EPSILON;
 }
 
-int ohash_compare_key_double(const void *a, const void *b)
+_Bool ohash_compare_key_double(const void *a, const void *b)
 {
     return fabs(*(double*)a - *(double*)b) < DBL_EPSILON;
 }
 
-int ohash_compare_key_long_double(const void *a, const void *b)
+_Bool ohash_compare_key_long_double(const void *a, const void *b)
 {
     return fabsl(*(long double*)a - *(long double*)b) < LDBL_EPSILON;
 }
