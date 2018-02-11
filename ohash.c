@@ -3,19 +3,12 @@
 #include <inttypes.h> // int*_t, uint*_t
 #include <math.h> // fabs(), fabsf(), fabsl()
 #include <stdio.h> // snprintf()
-#include <stdlib.h> // size_t, malloc(), free()
+#include <stdlib.h> // size_t, calloc(), malloc(), free()
 #include <string.h> // strcmp()
 #include <sodium.h> // crypto_shorthash_BYTES, crypto_shorthash(), randombytes_buf(), sodium_init()
 
 // used to silence compiler warnings about intentionally unused function arguments
 #define UNUSED(x) (void)(x)
-
-// clang supports more flexible static variable declarations
-#if __clang__
-#define FLEX_STATIC static
-#else
-#define FLEX_STATIC
-#endif
 
 // multiplies a * b, returning max if result would overflow it
 // implementation targeted for a and b between 0 and max
@@ -25,8 +18,8 @@
 // implementation targeted for a and b between 0 and max
 #define CAPPED_ADD(max, a, b) ( (max) - (a) >= (b) ? (a) + (b) : (max) )
 
-static void *ohash_alloc_new(OHash *hash, const size_t size);
-static void ohash_alloc_free_all(OHash *hash);
+static void *ohash_calloc_new(OHash *hash, const size_t count, const size_t size);
+static void ohash_calloc_free_all(OHash *hash);
 static _Bool ohash_prepare_options(OHashOptions *options);
 inline static size_t ohash_key_bucket(const OHash *hash, const void *key);
 static _Bool ohash_allocate_buckets(OHash *hash, size_t num_new_buckets);
@@ -227,7 +220,7 @@ void ohash_destroy(OHash *hash)
     ohash_delete_all(hash);
 
     // free all internal allocations
-    ohash_alloc_free_all(hash);
+    ohash_calloc_free_all(hash);
 
     // free hash buckets
     free(hash->buckets);
@@ -344,18 +337,22 @@ void ohash_iter_free(OHashIter *iterator)
  * freed when hash instance itself is freed with ohash_free().
  *
  * @param[in] hash An existing hash instance.
- * @param[in] size Bytes to allocate.
+ * @param[in] count Number of items to allocate.
+ * @param[in] size Bytes per item allocated.
  * @retval void* Pointer to allocated memory, if successful.
  * @retval NULL If memory could not be allocated.
  */
-static void *ohash_alloc_new(OHash *hash, const size_t size)
+static void *ohash_calloc_new(OHash *hash, const size_t count, const size_t size)
 {
+    if (!count || !size)
+        return NULL;
+
     OHashAllocation *alloc = malloc(sizeof *alloc);
 
     if (!alloc)
         return NULL;
 
-    if (!(alloc->allocation = malloc(size))) {
+    if (!(alloc->allocation = calloc(count, size))) {
         free(alloc);
         return NULL;
     }
@@ -372,7 +369,7 @@ static void *ohash_alloc_new(OHash *hash, const size_t size)
  *
  * @param[in] hash An existing hash instance.
  */
-static void ohash_alloc_free_all(OHash *hash)
+static void ohash_calloc_free_all(OHash *hash)
 {
     for (OHashAllocation *alloc = hash->allocations, *next_alloc; alloc; alloc = next_alloc) {
         next_alloc = alloc->next;
@@ -446,23 +443,13 @@ static _Bool ohash_prepare_options(OHashOptions *options)
  */
 static _Bool ohash_allocate_buckets(OHash *hash, size_t num_new_buckets)
 {
-    // calculations for buckets, in units and allocated bytes
-    FLEX_STATIC const size_t UNIT_ALLOCATION_BYTES = sizeof *hash->buckets;
-    FLEX_STATIC const size_t MAX_ALLOCATION_BYTES = (SIZE_MAX & ~(UNIT_ALLOCATION_BYTES - 1));
-    FLEX_STATIC const size_t MAX_ALLOCATION_UNITS = MAX_ALLOCATION_BYTES / UNIT_ALLOCATION_BYTES;
-
+    // allocate/initialize new buckets
     const size_t num_old_buckets = hash->num_buckets_allocated;
 
-    if (num_old_buckets >= MAX_ALLOCATION_UNITS)
+    if (!num_new_buckets || num_old_buckets >= SIZE_MAX / sizeof *hash->buckets)
         return 0;
 
-    const size_t bytes_new_buckets = CAPPED_MULTIPLY(MAX_ALLOCATION_BYTES, UNIT_ALLOCATION_BYTES, num_new_buckets);
-
-    if ((num_new_buckets = bytes_new_buckets / UNIT_ALLOCATION_BYTES) <= num_old_buckets)
-        return 0;
-
-    // allocate/initialize new buckets
-    OHashPairRef **new_buckets = malloc(bytes_new_buckets);
+    OHashPairRef **new_buckets = calloc(num_new_buckets, sizeof *hash->buckets);
 
     if (!new_buckets)
         return 0;
@@ -523,30 +510,16 @@ static OHashPairRef *ohash_obtain_pair_ref(OHash *hash)
 {
     // allocate more pairs
     if (!hash->pairs_unused_head) {
-        // calculations for pairs, in units and allocated bytes
-        FLEX_STATIC const size_t UNIT_ALLOCATION_BYTES = sizeof (OHashPair);
-        FLEX_STATIC const size_t MAX_ALLOCATION_BYTES = (SIZE_MAX & ~(UNIT_ALLOCATION_BYTES - 1));
-        FLEX_STATIC const size_t MAX_ALLOCATION_UNITS = MAX_ALLOCATION_BYTES / UNIT_ALLOCATION_BYTES;
-
         // allocate to match recent increase in bucket count; otherwise double existing allocation
         size_t num_new_pairs = CAPPED_ADD(
-            MAX_ALLOCATION_UNITS,
+            SIZE_MAX / sizeof (OHashPair),
             hash->num_pairs_allocated,
             hash->num_pairs_allocated < hash->num_buckets_allocated ?
                 hash->num_buckets_allocated - hash->num_pairs_allocated :
                 hash->num_pairs_allocated
         ) - hash->num_pairs_allocated;
 
-        const size_t bytes_new_pairs = CAPPED_MULTIPLY(
-            MAX_ALLOCATION_BYTES,
-            UNIT_ALLOCATION_BYTES,
-            num_new_pairs
-        );
-
-        if (!(num_new_pairs = bytes_new_pairs / UNIT_ALLOCATION_BYTES))
-            return NULL;
-
-        OHashPair *pairs = ohash_alloc_new(hash, bytes_new_pairs);
+        OHashPair *pairs = ohash_calloc_new(hash, num_new_pairs, sizeof (OHashPair));
 
         if (!pairs)
             return NULL;
@@ -559,30 +532,16 @@ static OHashPairRef *ohash_obtain_pair_ref(OHash *hash)
 
     // allocate more pair refs
     if (!hash->pair_refs_unused_head) {
-        // calculations for pair refs, in units and allocated bytes
-        FLEX_STATIC const size_t UNIT_ALLOCATION_BYTES = sizeof (OHashPairRef);
-        FLEX_STATIC const size_t MAX_ALLOCATION_BYTES = (SIZE_MAX & ~(UNIT_ALLOCATION_BYTES - 1));
-        FLEX_STATIC const size_t MAX_ALLOCATION_UNITS = MAX_ALLOCATION_BYTES / UNIT_ALLOCATION_BYTES;
-
         // allocate to match recent increase in bucket count; otherwise double existing allocation
         size_t num_new_pair_refs = CAPPED_ADD(
-            MAX_ALLOCATION_UNITS,
+            SIZE_MAX / sizeof (OHashPairRef),
             hash->num_pair_refs_allocated,
             hash->num_pair_refs_allocated < hash->num_buckets_allocated ?
                 hash->num_buckets_allocated - hash->num_pair_refs_allocated :
                 hash->num_pair_refs_allocated
         ) - hash->num_pair_refs_allocated;
 
-        const size_t bytes_new_pair_refs = CAPPED_MULTIPLY(
-            MAX_ALLOCATION_BYTES,
-            UNIT_ALLOCATION_BYTES,
-            num_new_pair_refs
-        );
-
-        if (!(num_new_pair_refs = bytes_new_pair_refs / UNIT_ALLOCATION_BYTES))
-            return NULL;
-
-        OHashPairRef *pair_refs = ohash_alloc_new(hash, bytes_new_pair_refs);
+        OHashPairRef *pair_refs = ohash_calloc_new(hash, num_new_pair_refs, sizeof (OHashPairRef));
 
         if (!pair_refs)
             return NULL;
