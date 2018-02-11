@@ -217,7 +217,7 @@ _Bool ohash_delete_all(OHash *hash)
 
 void ohash_destroy(OHash *hash)
 {
-    // free iterators - desirable side effect of converting zombies to unused
+    // free iterators
     for (OHashIter *iterator = hash->iterators, *next; iterator; iterator = next) {
         next = iterator->next;
         ohash_iter_free(iterator);
@@ -388,7 +388,7 @@ static void ohash_alloc_free_all(OHash *hash)
  *
  * @param[in] hash An existing hash instance.
  * @param[in] key A key, as a null pointer which configured hash function can handle.
- * @return Number between 0 and hash->num_buckets_allocated, as calculated by configured hash function.
+ * @return Number between 0 and hash->num_buckets_allocated - 1, as calculated by configured hash function.
  */
 inline static size_t ohash_key_bucket(const OHash *hash, const void *key)
 {
@@ -477,9 +477,13 @@ static _Bool ohash_allocate_buckets(OHash *hash, size_t num_new_buckets)
     size_t old_bucket, new_bucket;
     OHashPairRef *pair_ref, *next_pair_ref;
 
-    // iterate each used pair; when nested loop has already migrated a pair's bucket in
-    // advance, its (superfluous) nested loop will find an empty bucket and do no extra work
+    // iterate each used pair; when nested loop has previously migrated a pair's entire
+    // bucket, current nested loop will find an empty bucket and do no extra work
     for (OHashPair *pair = hash->pairs_used_head; pair; pair = pair->next) {
+        // skip zombies
+        if (!pair->key)
+            continue;
+
         old_bucket = hash->options.key_hash_fn(hash->options, pair->key) % num_old_buckets;
 
         // instead of searching for current pair only, migrate all bucket's pairs in advance
@@ -539,7 +543,7 @@ static OHashPairRef *ohash_obtain_pair_ref(OHash *hash)
             num_new_pairs
         );
 
-        if ((num_new_pairs = bytes_new_pairs / UNIT_ALLOCATION_BYTES) <= 0)
+        if (!(num_new_pairs = bytes_new_pairs / UNIT_ALLOCATION_BYTES))
             return NULL;
 
         OHashPair *pairs = ohash_alloc_new(hash, bytes_new_pairs);
@@ -575,7 +579,7 @@ static OHashPairRef *ohash_obtain_pair_ref(OHash *hash)
             num_new_pair_refs
         );
 
-        if ((num_new_pair_refs = bytes_new_pair_refs / UNIT_ALLOCATION_BYTES) <= 0)
+        if (!(num_new_pair_refs = bytes_new_pair_refs / UNIT_ALLOCATION_BYTES))
             return NULL;
 
         OHashPairRef *pair_refs = ohash_alloc_new(hash, bytes_new_pair_refs);
