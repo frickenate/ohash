@@ -332,6 +332,24 @@ _Bool ohash_exists(const OHash *hash, const void *key);
 _Bool ohash_insert(OHash *hash, void *key, void *value);
 
 /**
+ * Moves given existing key to first position (head) of given hash instance.
+ *
+ * @param[in] hash An existing hash instance.
+ * @param[in] key A previously stored key, to be moved to head.
+ * @return _Bool Whether key was found and moved to head (or is already head).
+ */
+_Bool ohash_move_key_head(OHash *hash, void *key);
+
+/**
+ * Moves given existing key to last position (tail) of given hash instance.
+ *
+ * @param[in] hash An existing hash instance.
+ * @param[in] key A previously stored key, to be moved to tail.
+ * @return _Bool Whether key was found and moved to tail (or is already tail).
+ */
+_Bool ohash_move_key_tail(OHash *hash, void *key);
+
+/**
  * Deletes given key (and its stored value) from given hash instance.
  *
  * Key and/or value freeing functions given in hash's options are called.

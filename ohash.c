@@ -154,6 +154,74 @@ _Bool ohash_insert(OHash *hash, void *key, void *value)
     return 1;
 }
 
+_Bool ohash_move_key_head(OHash *hash, void *key)
+{
+    // search pair refs of key's bucket for matching key
+    size_t bucket = ohash_key_bucket(hash, key);
+    OHashPairRef *pair_ref = hash->buckets[bucket];
+
+    while (pair_ref && !hash->options.key_compare_fn(pair_ref->pair->key, key))
+        pair_ref = pair_ref->next;
+
+    // key not found
+    if (!pair_ref)
+        return 0;
+
+    // already head
+    if (hash->pairs_used_head == pair_ref->pair)
+        return 1;
+
+    // move to head
+    if (pair_ref->pair->prev)
+        pair_ref->pair->prev->next = pair_ref->pair->next;
+
+    if (pair_ref->pair->next)
+        pair_ref->pair->next->prev = pair_ref->pair->prev;
+
+    if (hash->pairs_used_tail == pair_ref->pair)
+        hash->pairs_used_tail = pair_ref->pair->prev;
+
+    pair_ref->pair->prev = NULL;
+    pair_ref->pair->next = hash->pairs_used_head;
+    hash->pairs_used_head = pair_ref->pair;
+
+    return 1;
+}
+
+_Bool ohash_move_key_tail(OHash *hash, void *key)
+{
+    // search pair refs of key's bucket for matching key
+    size_t bucket = ohash_key_bucket(hash, key);
+    OHashPairRef *pair_ref = hash->buckets[bucket];
+
+    while (pair_ref && !hash->options.key_compare_fn(pair_ref->pair->key, key))
+        pair_ref = pair_ref->next;
+
+    // key not found
+    if (!pair_ref)
+        return 0;
+
+    // already tail
+    if (hash->pairs_used_tail == pair_ref->pair)
+        return 1;
+
+    // move to tail
+    if (pair_ref->pair->prev)
+        pair_ref->pair->prev->next = pair_ref->pair->next;
+
+    if (pair_ref->pair->next)
+        pair_ref->pair->next->prev = pair_ref->pair->prev;
+
+    if (hash->pairs_used_head == pair_ref->pair)
+        hash->pairs_used_head = pair_ref->pair->next;
+
+    pair_ref->pair->prev = hash->pairs_used_tail;
+    pair_ref->pair->next = NULL;
+    hash->pairs_used_tail = pair_ref->pair;
+
+    return 1;
+}
+
 _Bool ohash_delete(OHash *hash, void *key)
 {
     // search pair refs of key's bucket for matching key
