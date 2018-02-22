@@ -259,9 +259,10 @@ typedef struct OHash {
  * Iterator used to iterate, in insertion order, a hash instance's key/value pairs.
  */
 typedef struct OHashIter {
-    int first;       ///< whether we are at start of iteration (0/1)
-    OHash *hash;     ///< hash instance the iterator instance belongs to
-    OHashPair *pair; ///< current pair iterator is pointing at
+    _Bool free_on_destroy;  ///< whether iterator itself should be freed during hash destruction
+    int first;              ///< whether we are at start of iteration (0/1)
+    OHash *hash;            ///< hash instance the iterator instance belongs to
+    OHashPair *pair;        ///< current pair iterator is pointing at
     struct OHashIter *prev; ///< prev iterator
     struct OHashIter *next; ///< next iterator
 } OHashIter;

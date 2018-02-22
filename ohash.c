@@ -281,7 +281,11 @@ void ohash_destroy(OHash *hash)
     // free iterators
     for (OHashIter *iterator = hash->iterators, *next; iterator; iterator = next) {
         next = iterator->next;
-        ohash_iter_free(iterator);
+
+        if (iterator->free_on_destroy)
+            ohash_iter_free(iterator);
+        else
+            ohash_iter_destroy(iterator);
     }
 
     // delete all pairs
@@ -308,6 +312,7 @@ void ohash_free(OHash *hash)
 
 void ohash_iter_init(OHashIter *iterator, OHash *hash)
 {
+    iterator->free_on_destroy = 0;
     iterator->first = 1;
     iterator->hash = hash;
     iterator->pair = NULL;
@@ -325,8 +330,10 @@ OHashIter *ohash_iter_new(OHash *hash)
 {
     OHashIter *iterator = malloc(sizeof *iterator);
 
-    if (iterator)
+    if (iterator) {
         ohash_iter_init(iterator, hash);
+        iterator->free_on_destroy = 1;
+    }
 
     return iterator;
 }
@@ -379,7 +386,7 @@ void ohash_iter_destroy(OHashIter *iterator)
     if (iterator->next)
         iterator->next->prev = iterator->prev;
 
-    // upon freeing last iterator, release used zombies to unused
+    // upon removing last iterator, release used zombies to unused
     if (!iterator->hash->iterators) {
         OHashPairRef *pair_ref;
         while ((pair_ref = iterator->hash->pair_refs_zombie_head)) {
